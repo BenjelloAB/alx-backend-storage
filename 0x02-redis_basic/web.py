@@ -11,21 +11,23 @@ redis_ = redis.Redis()
 '''
 
 
-def count_requests(method: Callable) -> Callable:
-    '''Method that Caches the output of fetched data
-    '''
+def count_url_access(method):
+    """ Decorator counting how many times
+    a URL is accessed """
     @wraps(method)
     def wrapper(url):
-        '''The wrapper function for caching the output
-        '''
-        redis_.incr(f"count:{url}")
-        cached_html = redis_.get(f"cached:{url}")
-        if cached_html:
-            return cached_html.decode('utf-8')
-        html = method(url)
-        redis_.setex(f"cached:{url}", 10, html)
-        return html
+        cached_key = "cached:" + url
+        cached_data = redis_.get(cached_key)
+        if cached_data:
+            return cached_data.decode("utf-8")
 
+        count_key = "count:" + url
+        html = method(url)
+
+        redis_.incr(count_key)
+        redis_.set(cached_key, html)
+        redis_.expire(cached_key, 10)
+        return html
     return wrapper
 
 
